@@ -1,0 +1,4 @@
+http:
+  port: 80
+
+connect-timeout: 30000

@@ -4,15 +4,16 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
-import io.vertx.core.logging.Logger;
+
+import static io.vertx.core.json.JsonObject.mapFrom;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -23,7 +24,7 @@ public class MainVerticle extends AbstractVerticle {
     @Override
     public void start(Promise<Void> fut) throws Exception {
 
-        options.setConnectTimeout(5000);
+        options.setConnectTimeout(config().getInteger("connect-timeout", 30000));
         // Create a router object.
         Router router = Router.router(vertx);
 
@@ -37,16 +38,14 @@ public class MainVerticle extends AbstractVerticle {
 
         router.get("/auth").handler(this::auth);
         router.get("/checkinfo").handler(this::checkInfo);
-        router.get("/checkinfo").handler(this::checkInfo);
+        router.get("/charge").handler(this::charge);
 
         // Create the HTTP server and pass the "accept" method to the request handler.
         vertx
                 .createHttpServer()
                 .requestHandler(router)
                 .listen(
-                        // Retrieve the port from the configuration,
-                        // default to 8080.
-                        config().getInteger("http.port", 8080),
+                        config().getInteger("http.port"),
                         result -> {
                             if (result.succeeded()) {
                                 fut.complete();
@@ -81,6 +80,9 @@ public class MainVerticle extends AbstractVerticle {
                 });
     }
 
+    /*
+    * Check Info
+    * */
     private void checkInfo(RoutingContext routingContext) {
         String msisdn = routingContext.request().getParam("msisdn");
         String token = routingContext.request().getParam("token");
@@ -95,6 +97,40 @@ public class MainVerticle extends AbstractVerticle {
                 .putHeader("Content-Type", "application/json")
                 .as(BodyCodec.jsonObject())
                 .send(httpResponseAsyncResult -> {
+                    if (httpResponseAsyncResult.succeeded()) {
+                        HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
+                        routingContext.response().end(httpResponseAsyncResult.result().body().toString());
+                    } else {
+                        routingContext.response().setStatusCode(500).end("An error occured");
+                    }
+                });
+    }
+
+    /*
+     * Charge
+     * */
+    private void charge(RoutingContext routingContext) {
+        String msisdn = routingContext.request().getParam("msisdn");
+        String token = routingContext.request().getParam("token");
+        String refID = routingContext.request().getParam("refID");
+        String amount = routingContext.request().getParam("amount");
+        ChargeRequest chargeRequest = new ChargeRequest();
+        chargeRequest.setChargableAmount(amount);
+        chargeRequest.setCorrelationID(msisdn);
+        chargeRequest.setPartnerID("Binjeerenew2");
+        chargeRequest.setProductID("Binjeerenew");
+        chargeRequest.setRemarks("Binjee");
+        chargeRequest.setTransactionID(refID);
+        logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
+        WebClient.create(vertx, options)
+                .postAbs("https://xyz.com/payment/v1/charge")
+                .putHeader("Authorization", "Bearer " + token)
+                .putHeader("Postman-Token", "de9497e6-4a03-41c1-b813-de58547e992d")
+                .putHeader("Content-Length", "0")
+                .putHeader("Content-Type", "application/json")
+                .as(BodyCodec.jsonObject())
+                .as(BodyCodec.jsonObject())
+                .sendJsonObject(mapFrom(chargeRequest), httpResponseAsyncResult -> {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
                         routingContext.response().end(httpResponseAsyncResult.result().body().toString());
