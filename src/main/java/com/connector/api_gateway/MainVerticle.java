@@ -122,16 +122,17 @@ public class MainVerticle extends AbstractVerticle {
         String token = routingContext.request().getParam("token");
         String refID = routingContext.request().getParam("refID");
         String amount = routingContext.request().getParam("amount");
-        ChargeRequest chargeRequest = new ChargeRequest();
-        chargeRequest.setChargableAmount(amount);
-        chargeRequest.setCorrelationID(refID);
-        chargeRequest.setMsisdn(msisdn);
-        chargeRequest.setPartnerID("Binjeerenew2");
-        chargeRequest.setProductID("Binjeerenew");
-        chargeRequest.setRemarks("Binjee");
-        chargeRequest.setTransactionID(refID);
         logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
-        JsonObject request = mapFrom(chargeRequest);
+        JsonObject request = new JsonObject()
+                .put("correlationID", refID)
+                .put("msisdn", "msisdn")
+                .put("PartnerID", "Binjeerenew2")
+                .put("chargableAmount", amount)
+                .put("ProductID", "Binjeerenew")
+                .put("remarks", "Binjee")
+                .put("TransactionID", refID);
+        /*
+         * "{\n "correlationID":"$refID",\n "msisdn":"$msisdn",\n "PartnerID":"Binjeerenew2",\n "chargableAmount":"$amount",\n "ProductID":"Binjeerenew",\n "remarks":"Binjee",\n "TransactionID":"$refID"\n}",*/
         logger.info("send {0}", request);
         WebClient.create(vertx, options)
                 .postAbs("https://apis.telenor.com.pk/payment/v1/charge")
