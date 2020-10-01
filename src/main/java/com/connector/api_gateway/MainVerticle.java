@@ -24,7 +24,9 @@ public class MainVerticle extends AbstractVerticle {
     @Override
     public void start(Promise<Void> fut) throws Exception {
 
-        options.setConnectTimeout(config().getInteger("connect-timeout", 30000));
+        options.setConnectTimeout(config().getInteger("connect-timeout"));
+        options.setLogActivity(true);
+
         // Create a router object.
         Router router = Router.router(vertx);
 
@@ -64,6 +66,7 @@ public class MainVerticle extends AbstractVerticle {
         logger.info("Auth request received for refID = {0}", refID);
         WebClient.create(vertx, options)
                 .postAbs("https://apis.telenor.com.pk/oauthtoken/v1/generate?grant_type=client_credentials")
+                .timeout(config().getInteger("read-timeout"))
                 .putHeader("Authorization", "Basic SVltMEVSS21TdlJCcXZRbFgwMzZwZ2h0QW1USzJBM0Y6WEowQTlCS2NZR0NtQzRRbg==")
                 .putHeader("Postman-Token", routingContext.request().getParam("refID"))
                 .putHeader("Content-Length", "0")
@@ -72,7 +75,7 @@ public class MainVerticle extends AbstractVerticle {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
                         logger.info("successfully Authenticated");
-                        routingContext.response().end(httpResponseAsyncResult.result().body().toString());
+                        routingContext.response().end(response.body().toString());
                     } else {
                         logger.error("An error occured while authenticating user with refID {}, caused by {}", refID, httpResponseAsyncResult.cause());
                         routingContext.response().setStatusCode(500).end("An error occured");
@@ -81,8 +84,8 @@ public class MainVerticle extends AbstractVerticle {
     }
 
     /*
-    * Check Info
-    * */
+     * Check Info
+     * */
     private void checkInfo(RoutingContext routingContext) {
         String msisdn = routingContext.request().getParam("msisdn");
         String token = routingContext.request().getParam("token");
@@ -91,6 +94,7 @@ public class MainVerticle extends AbstractVerticle {
 
         WebClient.create(vertx, options)
                 .getAbs("https://apis.telenor.com.pk/subscriberQuery/v1/checkinfo/" + msisdn)
+                .timeout(config().getInteger("read-timeout"))
                 .putHeader("Authorization", "Bearer " + token)
                 .putHeader("Postman-Token", refID)
                 .putHeader("Content-Length", "0")
@@ -99,8 +103,9 @@ public class MainVerticle extends AbstractVerticle {
                 .send(httpResponseAsyncResult -> {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
-                        routingContext.response().end(httpResponseAsyncResult.result().body().toString());
+                        routingContext.response().end(response.body().toString());
                     } else {
+                        logger.error("An error occured while check info user with msisdn {}, caused by {}", msisdn, httpResponseAsyncResult.cause());
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
                 });
@@ -123,7 +128,8 @@ public class MainVerticle extends AbstractVerticle {
         chargeRequest.setTransactionID(refID);
         logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
         WebClient.create(vertx, options)
-                .postAbs("https://xyz.com/payment/v1/charge")
+                .postAbs("https://apis.telenor.com.pk/payment/v1/charge")
+                .timeout(config().getInteger("read-timeout"))
                 .putHeader("Authorization", "Bearer " + token)
                 .putHeader("Postman-Token", "de9497e6-4a03-41c1-b813-de58547e992d")
                 .putHeader("Content-Length", "0")
@@ -133,8 +139,9 @@ public class MainVerticle extends AbstractVerticle {
                 .sendJsonObject(mapFrom(chargeRequest), httpResponseAsyncResult -> {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
-                        routingContext.response().end(httpResponseAsyncResult.result().body().toString());
+                        routingContext.response().end(response.body().toString());
                     } else {
+                        logger.error("An error occured while charging transaction with msisdn {}, caused by {}", refID, httpResponseAsyncResult.cause());
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
                 });
