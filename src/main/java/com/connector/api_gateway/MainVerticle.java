@@ -121,7 +121,8 @@ public class MainVerticle extends AbstractVerticle {
         String amount = routingContext.request().getParam("amount");
         ChargeRequest chargeRequest = new ChargeRequest();
         chargeRequest.setChargableAmount(amount);
-        chargeRequest.setCorrelationID(msisdn);
+        chargeRequest.setCorrelationID(refID);
+        chargeRequest.setMsisdn(msisdn);
         chargeRequest.setPartnerID("Binjeerenew2");
         chargeRequest.setProductID("Binjeerenew");
         chargeRequest.setRemarks("Binjee");
