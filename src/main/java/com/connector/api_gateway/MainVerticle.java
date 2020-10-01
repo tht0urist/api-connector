@@ -125,7 +125,7 @@ public class MainVerticle extends AbstractVerticle {
         logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
         JsonObject request = new JsonObject()
                 .put("correlationID", refID)
-                .put("msisdn", "msisdn")
+                .put("msisdn", msisdn)
                 .put("PartnerID", "Binjeerenew2")
                 .put("chargableAmount", amount)
                 .put("ProductID", "Binjeerenew")
