@@ -136,7 +136,6 @@ public class MainVerticle extends AbstractVerticle {
                 .putHeader("Content-Length", "0")
                 .putHeader("Content-Type", "application/json")
                 .as(BodyCodec.jsonObject())
-                .as(BodyCodec.jsonObject())
                 .sendJsonObject(mapFrom(chargeRequest), httpResponseAsyncResult -> {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
