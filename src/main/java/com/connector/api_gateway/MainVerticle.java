@@ -1,5 +1,7 @@
 package com.connector.api_gateway;
 
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import io.netty.util.internal.logging.Log4JLoggerFactory;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerResponse;
@@ -23,9 +25,9 @@ public class MainVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> fut) throws Exception {
-
         options.setConnectTimeout(config().getInteger("connect-timeout"));
         options.setLogActivity(true);
+        InternalLoggerFactory.setDefaultFactory(Log4JLoggerFactory.INSTANCE);
 
         // Create a router object.
         Router router = Router.router(vertx);
@@ -106,6 +108,7 @@ public class MainVerticle extends AbstractVerticle {
                         routingContext.response().end(response.body().toString());
                     } else {
                         logger.error("An error occured while check info user with msisdn {}, caused by {}", msisdn, httpResponseAsyncResult.cause());
+
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
                 });
@@ -128,6 +131,8 @@ public class MainVerticle extends AbstractVerticle {
         chargeRequest.setRemarks("Binjee");
         chargeRequest.setTransactionID(refID);
         logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
+        JsonObject request = mapFrom(chargeRequest);
+        logger.info("send {0}", request);
         WebClient.create(vertx, options)
                 .postAbs("https://apis.telenor.com.pk/payment/v1/charge")
                 .timeout(config().getInteger("read-timeout"))
@@ -136,7 +141,7 @@ public class MainVerticle extends AbstractVerticle {
                 .putHeader("Content-Length", "0")
                 .putHeader("Content-Type", "application/json")
                 .as(BodyCodec.jsonObject())
-                .sendJsonObject(mapFrom(chargeRequest), httpResponseAsyncResult -> {
+                .sendJsonObject(request, httpResponseAsyncResult -> {
                     if (httpResponseAsyncResult.succeeded()) {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
                         routingContext.response().end(response.body().toString());
