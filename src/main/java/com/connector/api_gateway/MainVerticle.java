@@ -6,7 +6,6 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -15,19 +14,28 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.codec.BodyCodec;
 
-import static io.vertx.core.json.JsonObject.mapFrom;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MainVerticle extends AbstractVerticle {
 
-    private Logger logger = LoggerFactory.getLogger(MainVerticle.class);
 
+    private Logger logger = Logger.getLogger("MailVerticle");
     private WebClientOptions options = new WebClientOptions();
 
     @Override
     public void start(Promise<Void> fut) throws Exception {
+
+        //  The pattern "%t" means the system temporary directory.
+        Handler fh = new FileHandler("api-gateway.log");
+        // Send logger output to our FileHandler.
+        logger.addHandler(fh);
+        logger.setLevel(Level.ALL);
+
         options.setConnectTimeout(config().getInteger("connect-timeout"));
         options.setLogActivity(true);
-        InternalLoggerFactory.setDefaultFactory(Log4JLoggerFactory.INSTANCE);
 
         // Create a router object.
         Router router = Router.router(vertx);
@@ -65,7 +73,7 @@ public class MainVerticle extends AbstractVerticle {
      */
     private void auth(RoutingContext routingContext) {
         String refID = routingContext.request().getParam("refID");
-        logger.info("Auth request received for refID = {0}", refID);
+        logger.info("Auth request received for refID = " + refID);
         WebClient.create(vertx, options)
                 .postAbs("https://apis.telenor.com.pk/oauthtoken/v1/generate?grant_type=client_credentials")
                 .timeout(config().getInteger("read-timeout"))
@@ -79,7 +87,7 @@ public class MainVerticle extends AbstractVerticle {
                         logger.info("successfully Authenticated");
                         routingContext.response().end(response.body().toString());
                     } else {
-                        logger.error("An error occured while authenticating user with refID {}, caused by {}", refID, httpResponseAsyncResult.cause());
+                        logger.warning("An error occured while authenticating user with refID " + refID + ", caused by " + httpResponseAsyncResult.cause());
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
                 });
@@ -92,7 +100,7 @@ public class MainVerticle extends AbstractVerticle {
         String msisdn = routingContext.request().getParam("msisdn");
         String token = routingContext.request().getParam("token");
         String refID = routingContext.request().getParam("refID");
-        logger.info("Check info  request received for msisdn = {0}, token = {1} and refID = {2}", msisdn, token, refID);
+        logger.info("Check info  request received for msisdn = " + msisdn + ", token = " + token + " and refID = " + refID);
 
         WebClient.create(vertx, options)
                 .getAbs("https://apis.telenor.com.pk/subscriberQuery/v1/checkinfo/" + msisdn)
@@ -107,7 +115,7 @@ public class MainVerticle extends AbstractVerticle {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
                         routingContext.response().end(response.body().toString());
                     } else {
-                        logger.error("An error occured while check info user with msisdn {}, caused by {}", msisdn, httpResponseAsyncResult.cause());
+                        logger.warning("An error occured while check info user with msisdn " + msisdn + ", caused by " + httpResponseAsyncResult.cause());
 
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
@@ -122,7 +130,7 @@ public class MainVerticle extends AbstractVerticle {
         String token = routingContext.request().getParam("token");
         String refID = routingContext.request().getParam("refID");
         String amount = routingContext.request().getParam("amount");
-        logger.info("Charge  request received for msisdn = {0}, token = {1}, refID = {2}, amount = {3}", msisdn, token, refID, amount);
+        logger.info("Charge  request received for msisdn = " + msisdn + ", token = " + token + ", refID = " + refID + ", amount = " + amount);
         JsonObject request = new JsonObject()
                 .put("correlationID", refID)
                 .put("msisdn", msisdn)
@@ -133,7 +141,7 @@ public class MainVerticle extends AbstractVerticle {
                 .put("TransactionID", refID);
         /*
          * "{\n "correlationID":"$refID",\n "msisdn":"$msisdn",\n "PartnerID":"Binjeerenew2",\n "chargableAmount":"$amount",\n "ProductID":"Binjeerenew",\n "remarks":"Binjee",\n "TransactionID":"$refID"\n}",*/
-        logger.info("send {0}", request);
+        logger.info("send " + request);
         WebClient.create(vertx, options)
                 .postAbs("https://apis.telenor.com.pk/payment/v1/charge")
                 .timeout(config().getInteger("read-timeout"))
@@ -147,7 +155,7 @@ public class MainVerticle extends AbstractVerticle {
                         HttpResponse<JsonObject> response = httpResponseAsyncResult.result();
                         routingContext.response().end(response.body().toString());
                     } else {
-                        logger.error("An error occured while charging transaction with msisdn {}, caused by {}", refID, httpResponseAsyncResult.cause());
+                        logger.warning("An error occured while charging transaction with msisdn " + refID + ", caused by" + httpResponseAsyncResult.cause());
                         routingContext.response().setStatusCode(500).end("An error occured");
                     }
                 });
